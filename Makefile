@@ -1,29 +1,22 @@
-PYTHON		= python3
-VENV		= .venv
+VENV = .venv
 VENV_PYTHON	= $(VENV)/bin/python
-VENV_PIP	= $(VENV)/bin/pip
-# MAIN		=
 
-MYPY_FLAGS	= --warn-return-any \
-			  --warn-unused-ignores \
-			  --ignore-missing-imports \
-			  --disallow-untyped-defs \
-			  --check-untyped-defs
-
-# SRC			= 
+MYPY_FLAGS = --warn-return-any \
+			 --warn-unused-ignores \
+			 --ignore-missing-imports \
+			 --disallow-untyped-defs \
+			 --check-untyped-defs
 
 .PHONY: install run debug clean lint lint-strict
 
 install:
-	$(PYTHON) -m venv $(VENV)
-	$(VENV_PIP) install --upgrade pip
-	$(VENV_PIP) install -r requirements.txt
+	uv sync
 
 run:
-# 	$(VENV_PYTHON) $(MAIN) $(CONFIG)
+	uv run python -m src
 
 debug:
-# 	$(VENV_PYTHON) -m pdb $(MAIN) $(CONFIG)
+	uv run python -m pdb -m src
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
@@ -31,9 +24,9 @@ clean:
 	find . -type f -name "*.pyc" -delete
 
 lint:
-	$(VENV_PYTHON) -m flake8 --exclude $(VENV) .
-	$(VENV_PYTHON) -m mypy --exclude $(VENV) .
+	$(VENV_PYTHON) -m flake8 --exclude=".venv,llm_sdk" .
+	$(VENV_PYTHON) -m mypy --exclude="(^|/)llm_sdk(/|$$)" --exclude="$(VENV)" .
 
 lint-strict:
-	$(VENV_PYTHON) -m flake8 --exclude $(VENV) .
-	$(VENV_PYTHON) -m mypy --exclude $(VENV) --strict .
+	$(VENV_PYTHON) -m flake8 --exclude=".venv,llm_sdk" .
+	$(VENV_PYTHON) -m mypy --exclude="(^|/)llm_sdk(/|$$)" --exclude="$(VENV)" --strict .

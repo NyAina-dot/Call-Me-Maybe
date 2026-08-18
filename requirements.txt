@@ -1,5 +1,0 @@
-flake8
-mypy
-poetry
-pydantic
-numpy
