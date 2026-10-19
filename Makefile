@@ -1,5 +1,13 @@
-VENV = .venv
+VENV = $(HOME)/goinfre/CallMeMaybe/.venv
 VENV_PYTHON	= $(VENV)/bin/python
+
+HF_HOME= $(HOME)/goinfre/CallMeMaybe/.llm
+UV_CACHE_DIR= $(HOME)/goinfre/CallMeMaybe/.uv_cache
+UV_PROJECT_ENVIRONMENT=$(VENV)
+
+export HF_HOME
+export UV_CACHE_DIR
+export UV_PROJECT_ENVIRONMENT
 
 MYPY_FLAGS = --warn-return-any \
 			 --warn-unused-ignores \
@@ -10,10 +18,11 @@ MYPY_FLAGS = --warn-return-any \
 .PHONY: install run debug clean lint lint-strict
 
 install:
+	@mkdir -p $(HF_HOME) $(UV_CACHE_DIR) $(UV_PROJECT_ENVIRONMENT)
 	uv sync
 
 run:
-	uv run python -m src
+	uv run python -m src --functions_definition data/input/functions_definition.json --input data/input/function_calling_tests.json --output data/output/function_calls.json
 
 debug:
 	uv run python -m pdb -m src
