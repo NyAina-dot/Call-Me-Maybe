@@ -1,11 +1,7 @@
 import sys
 import argparse
 import json
-try:
-    from pydantic import BaseModel
-except ImportError as e:
-    print(e)
-    sys.exit(1)
+from pydantic import BaseModel
 
 
 def parse_args() -> argparse.Namespace:

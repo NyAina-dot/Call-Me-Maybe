@@ -1,19 +1,14 @@
-import sys
 from typing import Literal
-try:
-    from pydantic import BaseModel, ConfigDict, Field
-except ImportError as e:
-    print(e)
-    sys.exit(1)
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ParamType(BaseModel):
-    model_config = ConfigDict(extra='ignore')
+    model_config = ConfigDict(extra='forbid')
     type: Literal["number", "string", "boolean", "integer"]
 
 
 class FuncDefModel(BaseModel):
-    model_config = ConfigDict(extra='ignore')
+    model_config = ConfigDict(extra='forbid')
     name: str = Field(min_length=1)
     description: str
     parameters: dict[str, ParamType]
@@ -21,5 +16,12 @@ class FuncDefModel(BaseModel):
 
 
 class InputModel(BaseModel):
-    model_config = ConfigDict(extra='ignore')
+    model_config = ConfigDict(extra='forbid')
     prompt: str
+
+
+class ResultModel(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    prompt: str
+    name: str = Field(min_length=1)
+    parameters: dict[str, float | int | str | bool]

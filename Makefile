@@ -18,8 +18,10 @@ MYPY_FLAGS = --warn-return-any \
 .PHONY: install run debug clean lint lint-strict
 
 install:
-	@mkdir -p $(HF_HOME) $(UV_CACHE_DIR) $(UV_PROJECT_ENVIRONMENT)
-	uv sync
+	@mkdir -p $(HF_HOME) $(UV_CACHE_DIR)
+	@rm -rf $(VENV)
+	PATH=$$(echo $$PATH | tr ':' '\n' | grep -v "\.pyenv" | tr '\n' ':' | sed 's/:$$//') \
+	uv sync --python 3.13 --python-preference managed
 
 run:
 	uv run python -m src
