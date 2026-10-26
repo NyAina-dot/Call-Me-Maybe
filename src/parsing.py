@@ -1,4 +1,3 @@
-import sys
 import argparse
 import json
 from pydantic import BaseModel
