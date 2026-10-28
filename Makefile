@@ -1,9 +1,9 @@
-VENV = $(HOME)/goinfre/CallMeMaybe/.venv
-VENV_PYTHON	= $(VENV)/bin/python
+VENV = $(abspath ..)/Call_Me_Maybe/.venv
+VENV_PYTHON = $(VENV)/bin/python
 
-HF_HOME= $(HOME)/goinfre/CallMeMaybe/.llm
-UV_CACHE_DIR= $(HOME)/goinfre/CallMeMaybe/.uv_cache
-UV_PROJECT_ENVIRONMENT=$(VENV)
+HF_HOME = $(abspath ..)/Call_Me_Maybe/.llm
+UV_CACHE_DIR = $(abspath ..)/Call_Me_Maybe/.uv_cache
+UV_PROJECT_ENVIRONMENT = $(VENV)
 
 export HF_HOME
 export UV_CACHE_DIR
@@ -19,7 +19,6 @@ MYPY_FLAGS = --warn-return-any \
 
 install:
 	@mkdir -p $(HF_HOME) $(UV_CACHE_DIR)
-	@rm -rf $(VENV)
 	PATH=$$(echo $$PATH | tr ':' '\n' | grep -v "\.pyenv" | tr '\n' ':' | sed 's/:$$//') \
 	uv sync --python 3.13 --python-preference managed
 

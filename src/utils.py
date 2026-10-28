@@ -1,3 +1,4 @@
+from typing import Any
 from llm_sdk import Small_LLM_Model
 from .models import FuncDefModel
 import json
@@ -51,3 +52,54 @@ class Tokenizer:
             result[name] = self.text_to_token_ids(name)
 
         return result
+
+    def function_names_token_tree(
+        self, functions: list[FuncDefModel]
+    ) -> dict[int, dict]:
+        """Build a trie of token ids from the canonical encoding of each name."""
+        tree: dict[int, dict] = {}
+        names_tokens = self.function_names_to_tokens(functions)
+
+        for token_ids in names_tokens.values():
+            node = tree
+
+            for token_id in token_ids:
+                node = node.setdefault(token_id, {})
+
+            node[None] = {}
+
+        return tree
+
+    def get_allowed_tokens(
+        self,
+        tree: dict[int | None, Any],
+        generated_tokens: list[int],
+    ) -> list[int]:
+        """Return the token ids allowed after the generated tokens.
+
+        Args:
+            tree: Trie built by function_names_token_tree.
+            generated_tokens: Token ids already generated for the name.
+
+        Returns:
+            Ids of the tokens that continue a valid function name.
+
+        Raises:
+            ValueError: If generated_tokens leaves the trie, or if no
+                continuation is possible.
+        """
+        current = tree
+
+        for token_id in generated_tokens:
+            if token_id not in current:
+                raise ValueError(
+                    f"Token {token_id} is not a valid continuation"
+                )
+            current = current[token_id]
+
+        allowed = [key for key in current if key is not None]
+
+        if not allowed:
+            raise ValueError("No token can continue this function name")
+
+        return allowed

@@ -40,8 +40,16 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def validate_file_content(path: str, model: BaseModel) -> None:
-    with open(path, "r") as file:
+def load_file(path: str, model: type[BaseModel]) -> list[BaseModel]:
+    """Load a JSON file containing a list and validate each element.
+
+    Args:
+        path: Path to the JSON file.
+        model: Pydantic model class used to validate each element.
+
+    Returns:
+        The list of validated models.
+    """
+    with open(path, "r", encoding="utf-8") as file:
         data = json.load(file)
-    for i in range(len(data)):
-        model.model_validate(data[i])
+    return [model.model_validate(item) for item in data]
