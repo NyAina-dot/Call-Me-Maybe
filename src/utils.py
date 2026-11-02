@@ -103,3 +103,14 @@ class Tokenizer:
             raise ValueError("No token can continue this function name")
 
         return allowed
+
+    def is_complete(
+        self, tree: dict[int | None, Any], generated_tokens: list[int]
+    ) -> bool:
+        """Return True if generated_tokens spell a full function name."""
+        current = tree
+        for token_id in generated_tokens:
+            if token_id not in current:
+                raise ValueError(f"Token {token_id} is not a valid continuation")
+            current = current[token_id]
+        return None in current
