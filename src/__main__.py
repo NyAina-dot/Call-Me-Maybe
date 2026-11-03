@@ -4,7 +4,7 @@ from .parsing import parse_args, load_file
 from .models import FuncDefModel, InputModel
 from pydantic import ValidationError
 from json import JSONDecodeError
-from .constraint import FunctionSelector
+from .constraint import FunctionSelector, ParameterGenerator
 
 
 if __name__ == "__main__":
@@ -23,6 +23,16 @@ if __name__ == "__main__":
         print()
         result = constraint.choose_function_name(prompt, funcdef_content)
         print(result)
+        print()
+        p = ParameterGenerator(model, tokenizer)
+        for i in range(len(funcdef_content)):
+            if funcdef_content[i].name == result:
+                index = i
+                break
+            i += 1
+        print(
+            p.build_prompt(prompt, funcdef_content[index])
+        )
 
     except (
         ValidationError,
