@@ -53,6 +53,17 @@ class Tokenizer:
 
         return result
 
+    def mask_logits(
+        self, logits: list[float], allowed_tokens: list[int]
+    ) -> list[float]:
+        """Set forbidden token logits to negative infinity."""
+        masked_logits = [float("-inf")] * len(logits)
+
+        for token_id in allowed_tokens:
+            masked_logits[token_id] = logits[token_id]
+
+        return masked_logits
+
     def function_names_token_tree(
         self, functions: list[FuncDefModel]
     ) -> dict[int, dict]:
