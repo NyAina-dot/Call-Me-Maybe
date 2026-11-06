@@ -17,9 +17,9 @@ if __name__ == "__main__":
         input_content = load_file(arg.input, InputModel)
         tokenizer = Tokenizer(model)
         constraint = FunctionSelector(model, tokenizer)
-        prompt = "Substitute the word 'cat' with 'dog' in 'The cat sat on the mat with another cat'"
-        print()
-        print(constraint.build_prompt(prompt, funcdef_content))
+        prompt =  "What is the sum of 1 and 4?"
+        # print()
+        # print(constraint.build_prompt(prompt, funcdef_content))
         print()
         result = constraint.choose_function_name(prompt, funcdef_content)
         print(result)
@@ -30,9 +30,11 @@ if __name__ == "__main__":
                 index = i
                 break
             i += 1
-        print(
-            p.build_prompt(prompt, funcdef_content[index])
-        )
+        # print(
+        #     p.build_prompt(prompt, funcdef_content[index])
+        # )
+        # print("\n\n\n")
+        print(p.generate_parameters(prompt, funcdef_content[index]))
 
     except (
         ValidationError,

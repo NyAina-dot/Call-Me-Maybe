@@ -32,7 +32,6 @@ class FunctionSelector:
         )
         tree = self.tokenizer.function_names_token_tree(functions)
         generated_ids: list[int] = []
-
         while not self.tokenizer.is_complete(tree, generated_ids):
             logits = self.model.get_logits_from_input_ids(
                 prompt_ids + generated_ids
@@ -68,6 +67,68 @@ class ParameterGenerator:
         )
 
     def generate_parameters(
-        prompt: str, function: FuncDefModel
+        self, prompt: str, function: FuncDefModel
     ) -> dict[str, float | int | str | bool]:
-        pass
+        tokens_ids = self.tokenizer.text_to_token_ids(
+            self.build_prompt(prompt, function)
+        )
+        result: dict[str, float | int | str | bool] = {}
+        parameter_names = list(function.parameters)
+
+        for index, name in enumerate(parameter_names):
+            parameter = function.parameters[name]
+            prefix = json.dumps(name) + ": "
+            tokens_ids.extend(self.tokenizer.text_to_token_ids(prefix))
+
+            if parameter.type in ("number", "integer"):
+                value = self.generate_number(
+                    tokens_ids,
+                    integer=(parameter.type == "integer")
+                )
+            elif parameter.type == "string":
+                value = self.generate_string(tokens_ids)
+            elif parameter.type == "boolean":
+                value = self.generate_boolean(tokens_ids)
+            else:
+                raise ValueError(
+                    f"Unsupported parameter type: {parameter.type}"
+                )
+            result[name] = value
+            tokens_ids.extend(
+                self.tokenizer.text_to_token_ids(json.dumps(value))
+            )
+            if index < len(parameter_names) - 1:
+                tokens_ids.extend(
+                    self.tokenizer.text_to_token_ids(", ")
+                )
+        return result
+
+    def generate_number(
+        self, context_ids: list[int], integer: bool
+    ) -> float | int:
+        char_numbers = "0123456789-"
+        if not integer:
+            char_numbers += "."
+        allowed_tokens = []
+        for token_id, token_text in enumerate(self.tokenizer.id_to_text):
+            if token_text and all(char in char_numbers for char in token_text):
+                allowed_tokens.append(token_id)
+        generated_ids: list[int] = []
+        for _ in range(20):
+            logits = self.model.get_logits_from_input_ids(
+                context_ids + generated_ids
+            )
+            masked_logits = self.tokenizer.mask_logits(logits, allowed_tokens)
+            next_token_id = max(
+                range(len(masked_logits)),
+                key=lambda i: masked_logits[i]
+            )
+            token_text = self.tokenizer.id_to_text[next_token_id]
+            generated_ids.append(next_token_id)
+        return 1
+
+    def generate_string(self, context_ids: list[int]) -> str:
+        return "Bonjour"
+
+    def generate_boolean(self, context_ids: list[int]) -> bool:
+        return False
