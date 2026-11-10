@@ -17,7 +17,7 @@ if __name__ == "__main__":
         input_content = load_file(arg.input, InputModel)
         tokenizer = Tokenizer(model)
         constraint = FunctionSelector(model, tokenizer)
-        prompt =  "What is the sum of 1 and 4?"
+        prompt =  "What is the sum of 4587 and -4258.2455?"
         # print()
         # print(constraint.build_prompt(prompt, funcdef_content))
         print()
