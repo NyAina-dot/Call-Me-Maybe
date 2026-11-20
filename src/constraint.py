@@ -1,18 +1,24 @@
+"""Constrained decoding for function names and parameter values."""
+
 from .utils import Tokenizer
 from .models import FuncDefModel
-from llm_sdk import Small_LLM_Model
-from typing import Any
+from llm_sdk import Small_LLM_Model  # type: ignore[attr-defined]
 import json
+import numpy as np
 
 
 class FunctionSelector:
+    """Select a function name using constrained token generation."""
+
     def __init__(self, model: Small_LLM_Model, tokenizer: Tokenizer):
+        """Initialize the selector with a model and tokenizer."""
         self.model = model
         self.tokenizer = tokenizer
-    
+
     def build_prompt(
         self, prompt: str, functions: list[FuncDefModel]
-    ) -> None:
+    ) -> str:
+        """Build the prompt used to select a function."""
         lines = [
             "You are a function-calling assistant. Given a user request, "
             "select the single best function from the list below.",
@@ -27,6 +33,7 @@ class FunctionSelector:
     def choose_function_name(
             self, prompt: str, functions: list[FuncDefModel]
     ) -> str:
+        """Generate and return the best matching function name."""
         prompt_ids = self.tokenizer.text_to_token_ids(
             self.build_prompt(prompt, functions)
         )
@@ -43,32 +50,56 @@ class FunctionSelector:
 
 
 class ParameterGenerator:
+    """Generate typed function parameters using constrained decoding."""
+
     def __init__(
         self, model: Small_LLM_Model, tokenizer: Tokenizer
     ):
+        """Initialize parameter generation state from the vocabulary."""
         self.model = model
         self.tokenizer = tokenizer
+
+        self.string_tokens = [
+            (token_id, token_text)
+            for token_id, token_text in enumerate(
+                tokenizer.id_to_text
+            )
+            if token_text
+            and '"' not in token_text
+            and all(ord(char) >= 32 for char in token_text)
+        ]
+
+        self.closing_quote_tokens = {
+            token_id
+            for token_id, token_text in enumerate(
+                tokenizer.id_to_text
+            )
+            if token_text.startswith('"')
+        }
 
     def build_prompt(
         self, prompt: str, function: FuncDefModel
     ) -> str:
+        """Build the prompt used to extract function parameters."""
         parameters = {
             name: parameter.type
             for name, parameter in function.parameters.items()
         }
+        print(f"processing {function.name}")
+
         return (
-            "You are a function-calling assistant. Extract the parameters "
-            "for the requested function from the user request.\n\n"
-            f"Function: {function.name}\n"
-            f"Description: {function.description}\n"
-            f"Parameter types: {json.dumps(parameters)}\n\n"
-            f"Request: {prompt}\n"
-            "Arguments: "
+            "Extract the parameters for the function "
+            f"\"{function.name}: {function.description}\" "
+            "from the user request.\n"
+            f"Parameters are: {json.dumps(parameters)}\n\n"
+            f"User request: {prompt}\n"
+            "Arguments : "
         )
 
     def generate_parameters(
         self, prompt: str, function: FuncDefModel
     ) -> dict[str, float | int | str | bool]:
+        """Generate all supported parameters for a function."""
         tokens_ids = self.tokenizer.text_to_token_ids(
             self.build_prompt(prompt, function)
         )
@@ -82,6 +113,7 @@ class ParameterGenerator:
             prefix = json.dumps(name) + ": "
             tokens_ids.extend(self.tokenizer.text_to_token_ids(prefix))
 
+            value: float | int | str | bool
             if parameter.type in ("number", "integer"):
                 value = self.generate_number(
                     tokens_ids,
@@ -94,8 +126,6 @@ class ParameterGenerator:
                 number_index += 1
             elif parameter.type == "string":
                 value = self.generate_string(tokens_ids)
-            elif parameter.type == "boolean":
-                value = self.generate_boolean(tokens_ids)
             else:
                 raise ValueError(
                     f"Unsupported parameter type: {parameter.type}"
@@ -111,7 +141,7 @@ class ParameterGenerator:
         return result
 
     def get_negative_number_flags(self, text: str) -> list[bool]:
-        """Return the signs of numeric literals in text, in appearance order."""
+        """Return signs of numeric literals in appearance order."""
         flags: list[bool] = []
         index = 0
 
@@ -155,7 +185,7 @@ class ParameterGenerator:
     def is_number_prefix(
         self, text: str, integer: bool = False
     ) -> bool:
-        """Return True if text can still become a valid number."""
+        """Return whether text can still become a valid number."""
         if text.startswith("-"):
             body = text[1:]
         else:
@@ -186,6 +216,7 @@ class ParameterGenerator:
         self, generated_text: str, integer: bool,
         require_negative: bool = False,
     ) -> list[int]:
+        """Return vocabulary tokens that preserve a valid number prefix."""
         allowed_tokens = []
 
         for token_id, token_text in enumerate(self.tokenizer.id_to_text):
@@ -230,6 +261,7 @@ class ParameterGenerator:
         self, context_ids: list[int], integer: bool,
         require_negative: bool = False,
     ) -> float | int:
+        """Generate a JSON number from the model's token probabilities."""
         generated_ids: list[int] = []
         generated_text = ""
 
@@ -246,7 +278,9 @@ class ParameterGenerator:
             )
             termination_tokens = [
                 token_id
-                for token_id, token_text in enumerate(self.tokenizer.id_to_text)
+                for token_id, token_text in enumerate(
+                    self.tokenizer.id_to_text
+                )
                 if number_is_complete and token_text in (",", "}")
             ]
             allowed_tokens.extend(termination_tokens)
@@ -267,7 +301,11 @@ class ParameterGenerator:
             token_text = self.tokenizer.id_to_text[next_token_id]
 
             if token_text in (",", "}"):
-                return int(generated_text) if integer else float(generated_text)
+                return (
+                    int(generated_text)
+                    if integer
+                    else float(generated_text)
+                )
 
             generated_ids.append(next_token_id)
             generated_text += token_text
@@ -280,8 +318,99 @@ class ParameterGenerator:
 
         return int(generated_text) if integer else float(generated_text)
 
-    def generate_string(self, context_ids: list[int]) -> str:
-        return "Bonjour"
+    def is_valid_json_string_prefix(self, text: str) -> bool:
+        """Return whether text is a valid, unfinished JSON string."""
+        if not text.startswith('"'):
+            return False
 
-    def generate_boolean(self, context_ids: list[int]) -> bool:
-        return False
+        escaped = False
+        unicode_remaining = 0
+
+        for char in text[1:]:
+            if unicode_remaining > 0:
+                if char not in "0123456789abcdefABCDEF":
+                    return False
+                unicode_remaining -= 1
+
+            elif escaped:
+                if char == "u":
+                    unicode_remaining = 4
+                elif char not in '"\\/bfnrt':
+                    return False
+                escaped = False
+
+            elif char == "\\":
+                escaped = True
+
+            elif char == '"':
+                return False
+
+            elif ord(char) < 32:
+                return False
+
+        return True
+
+    def get_allowed_string_tokens(
+        self, generated_text: str
+    ) -> list[int]:
+        """Return vocabulary tokens valid after a string prefix."""
+        allowed_tokens = []
+
+        for token_id, token_text in self.string_tokens:
+            candidate = generated_text + token_text
+
+            if self.is_valid_json_string_prefix(candidate):
+                allowed_tokens.append(token_id)
+
+        return allowed_tokens
+
+    def generate_string(self, context_ids: list[int]) -> str:
+        """Generate a JSON string using constrained decoding."""
+        opening_quote_ids = self.tokenizer.text_to_token_ids('"')
+
+        generated_ids = opening_quote_ids.copy()
+        generated_text = '"'
+
+        for _ in range(50):
+            logits = self.model.get_logits_from_input_ids(
+                context_ids + generated_ids
+            )
+
+            allowed_tokens = self.get_allowed_string_tokens(
+                generated_text
+            )
+
+            try:
+                json.loads(generated_text + '"')
+                can_close = True
+            except json.JSONDecodeError:
+                can_close = False
+
+            if can_close:
+                allowed_tokens.extend(self.closing_quote_tokens)
+
+            if not allowed_tokens:
+                raise ValueError(
+                    f"No valid token for string: {generated_text!r}"
+                )
+
+            masked_logits = self.tokenizer.mask_logits(
+                logits, allowed_tokens
+            )
+
+            next_token_id = int(
+                np.argmax(np.asarray(masked_logits))
+            )
+
+            if next_token_id in self.closing_quote_tokens:
+                generated_text += '"'
+                return str(json.loads(generated_text))
+
+            token_text = self.tokenizer.id_to_text[next_token_id]
+
+            generated_ids.append(next_token_id)
+            generated_text += token_text
+
+        raise ValueError(
+            f"String generation limit reached: {generated_text!r}"
+        )

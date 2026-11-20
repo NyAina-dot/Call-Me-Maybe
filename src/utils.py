@@ -1,7 +1,10 @@
-from typing import Any
-from llm_sdk import Small_LLM_Model
+"""Tokenizer helpers for constrained decoding."""
+
+from typing import Any, cast
+from llm_sdk import Small_LLM_Model  # type: ignore[attr-defined]
 from .models import FuncDefModel
 import json
+import numpy as np
 
 
 class Tokenizer:
@@ -34,11 +37,11 @@ class Tokenizer:
     def text_to_token_ids(self, text: str) -> list[int]:
         """Encode a text into a flat list of token ids."""
         encoded = self.model.encode(text)
-        return encoded[0].tolist()
+        return cast(list[int], encoded[0].tolist())
 
     def token_ids_to_text(self, token_ids: list[int]) -> str:
         """Decode a list of token ids back into text."""
-        return self.model.decode(token_ids)
+        return cast(str, self.model.decode(token_ids))
 
     def function_names_to_tokens(
         self,
@@ -56,19 +59,16 @@ class Tokenizer:
     def mask_logits(
         self, logits: list[float], allowed_tokens: list[int]
     ) -> list[float]:
-        """Set forbidden token logits to negative infinity."""
-        masked_logits = [float("-inf")] * len(logits)
-
-        for token_id in allowed_tokens:
-            masked_logits[token_id] = logits[token_id]
-
-        return masked_logits
+        """Mask logits for tokens that are not allowed."""
+        masked_logits = np.full(len(logits), -np.inf)
+        masked_logits[allowed_tokens] = np.array(logits)[allowed_tokens]
+        return masked_logits.tolist()
 
     def function_names_token_tree(
         self, functions: list[FuncDefModel]
-    ) -> dict[int, dict]:
-        """Build a trie of token ids from the canonical encoding of each name."""
-        tree: dict[int, dict] = {}
+    ) -> dict[int | None, dict[int | None, Any]]:
+        """Build a token trie from the canonical encoding of each name."""
+        tree: dict[int | None, dict[int | None, Any]] = {}
         names_tokens = self.function_names_to_tokens(functions)
 
         for token_ids in names_tokens.values():
@@ -122,6 +122,8 @@ class Tokenizer:
         current = tree
         for token_id in generated_tokens:
             if token_id not in current:
-                raise ValueError(f"Token {token_id} is not a valid continuation")
+                raise ValueError(
+                    f"Token {token_id} is not a valid continuation"
+                )
             current = current[token_id]
         return None in current

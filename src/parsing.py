@@ -1,9 +1,16 @@
+"""Command-line argument parsing and JSON model loading helpers."""
+
 import argparse
 import json
+from typing import TypeVar
 from pydantic import BaseModel
 
 
+ModelT = TypeVar("ModelT", bound=BaseModel)
+
+
 def parse_args() -> argparse.Namespace:
+    """Parse command-line options for the application."""
     parser = argparse.ArgumentParser(
             description=(
                 "Translate natural language prompts into "
@@ -40,7 +47,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_file(path: str, model: type[BaseModel]) -> list[BaseModel]:
+def load_file(path: str, model: type[ModelT]) -> list[ModelT]:
     """Load a JSON file containing a list and validate each element.
 
     Args:
