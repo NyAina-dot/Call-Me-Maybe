@@ -1,26 +1,7 @@
-VENV = $(abspath ..)/Call_Me_Maybe/.venv
-VENV_PYTHON = $(VENV)/bin/python
-
-HF_HOME = $(abspath ..)/Call_Me_Maybe/.llm
-UV_CACHE_DIR = $(abspath ..)/Call_Me_Maybe/.uv_cache
-UV_PROJECT_ENVIRONMENT = $(VENV)
-
-export HF_HOME
-export UV_CACHE_DIR
-export UV_PROJECT_ENVIRONMENT
-
-MYPY_FLAGS = --warn-return-any \
-			 --warn-unused-ignores \
-			 --ignore-missing-imports \
-			 --disallow-untyped-defs \
-			 --check-untyped-defs
-
 .PHONY: install run debug clean lint lint-strict
 
 install:
-	@mkdir -p $(HF_HOME) $(UV_CACHE_DIR)
-	PATH=$$(echo $$PATH | tr ':' '\n' | grep -v "\.pyenv" | tr '\n' ':' | sed 's/:$$//') \
-	uv sync --python 3.13 --python-preference managed
+	uv sync --python 3.13
 
 run:
 	uv run python -m src $(ARGS) \
@@ -37,9 +18,9 @@ clean:
 	find . -type f -name "*.pyc" -delete
 
 lint:
-	$(VENV_PYTHON) -m flake8 --exclude=".venv,llm_sdk" .
-	$(VENV_PYTHON) -m mypy --exclude="(^|/)llm_sdk(/|$$)" --exclude="$(VENV)" .
+	uv run python -m flake8 --exclude=".venv,llm_sdk" .
+	uv run python -m mypy --exclude="(^|/)llm_sdk(/|$$)" .
 
 lint-strict:
-	$(VENV_PYTHON) -m flake8 --exclude=".venv,llm_sdk" .
-	$(VENV_PYTHON) -m mypy --exclude="(^|/)llm_sdk(/|$$)" --exclude="$(VENV)" --strict .
+	uv run python -m flake8 --exclude=".venv,llm_sdk" .
+	uv run python -m mypy --exclude="(^|/)llm_sdk(/|$$)" --strict .
