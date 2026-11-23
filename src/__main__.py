@@ -12,8 +12,8 @@ from pathlib import Path
 
 if __name__ == "__main__":
     try:
-        model = Small_LLM_Model()
         arg = parse_args()
+        model = Small_LLM_Model()
 
         funcdef_content = load_file(
             arg.functions_definition, FuncDefModel
@@ -24,52 +24,63 @@ if __name__ == "__main__":
         selector = FunctionSelector(model, tokenizer)
         generator = ParameterGenerator(model, tokenizer)
 
-        results = []
-
-        for test in input_content:
-            prompt = test.prompt
-
-            function_name = selector.choose_function_name(
-                prompt, funcdef_content
-            )
-
-            function = next(
-                (
-                    func for func in funcdef_content
-                    if func.name == function_name
-                ),
-                None
-            )
-
-            if function is None:
-                raise ValueError(
-                    f"Unknown function: {function_name}"
-                )
-
-            parameters = generator.generate_parameters(
-                prompt, function
-            )
-
-            result = ResultModel(
-                prompt=prompt,
-                name=function_name,
-                parameters=parameters
-            )
-
-            results.append(result)
-
         output_path = Path(arg.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(output_path, "w", encoding="utf-8") as file:
-            json.dump(
-                [result.model_dump() for result in results],
-                file,
-                indent=4,
-                ensure_ascii=False
-            )
+            file.write("[\n")
+            file.flush()
 
-        print(f"Successfully processed {len(results)} prompts.")
+            for index, test in enumerate(input_content):
+                prompt = test.prompt
+
+                function_name = selector.choose_function_name(
+                    prompt, funcdef_content
+                )
+
+                function = next(
+                    (
+                        func for func in funcdef_content
+                        if func.name == function_name
+                    ),
+                    None
+                )
+
+                if function is None:
+                    raise ValueError(
+                        f"Unknown function: {function_name}"
+                    )
+
+                parameters = generator.generate_parameters(
+                    prompt, function
+                )
+
+                result = ResultModel(
+                    prompt=prompt,
+                    name=function_name,
+                    parameters=parameters
+                )
+
+                if index:
+                    file.write(",\n")
+
+                serialized_result = json.dumps(
+                    result.model_dump(),
+                    indent=4,
+                    ensure_ascii=False
+                )
+                file.write(
+                    "\n".join(
+                        f"    {line}"
+                        for line in serialized_result.splitlines()
+                    )
+                )
+                file.flush()
+
+            file.write("\n]\n")
+            file.flush()
+
+        print(f"Successfully processed {len(input_content)} prompts.")
 
     except (
         ValidationError,

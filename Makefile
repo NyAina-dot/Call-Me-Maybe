@@ -23,7 +23,10 @@ install:
 	uv sync --python 3.13 --python-preference managed
 
 run:
-	uv run python -m src
+	uv run python -m src $(ARGS) \
+		$(if $(FUNCTIONS_DEFINITION),--functions_definition "$(FUNCTIONS_DEFINITION)") \
+		$(if $(INPUT),--input "$(INPUT)") \
+		$(if $(OUTPUT),--output "$(OUTPUT)")
 
 debug:
 	uv run python -m pdb -m src
